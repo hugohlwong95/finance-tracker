@@ -246,12 +246,15 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
     <div class="pane" id="pane-recur">
       <div class="rec-section-head">定期重複</div>
       <div id="recur-list"></div>
-      <button class="rec-add-btn" id="rec-add-btn" onclick="openRecModal()">＋ 新增定期項目</button>
+      <button class="rec-add-btn" id="rec-add-btn">＋ 新增定期項目</button>
       <div style="height:10px;"></div>
       <div class="sec" style="margin-top:14px;">
-        <div class="sec-head" style="padding-bottom:10px;">說明</div>
-        <div style="padding:8px 16px 16px;font-size:13px;color:var(--text2);line-height:1.7;">
-          定期項目會在每次開啟 App 時自動檢查，若到期則自動新增記帳記錄。可停用任何項目而不刪除。
+        <div class="sec-head" style="padding-bottom:10px;">使用說明</div>
+        <div style="padding:8px 16px 16px;font-size:13px;color:var(--text2);line-height:1.8;">
+          • 定期項目會在每次開啟 App 時自動檢查<br>
+          • 若到期則自動新增記帳記錄<br>
+          • 可隨時停用項目而不刪除<br>
+          • 設定過去嘅開始月份會補回所有未記錄月份
         </div>
       </div>
     </div>
@@ -274,6 +277,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
       <div id="acct-networth-section"></div>
       <div id="acct-list-section"></div>
       <div id="acct-alloc-section"></div>
+      <button class="acct-add-btn" id="acct-static-add-btn" style="margin-top:0;">＋ 新增戶口 / 資產</button>
     </div>
 
     <!-- EXPORT -->
@@ -487,7 +491,7 @@ function addEntry(){
   const note=document.getElementById("f-note").value.trim();
   const msg=document.getElementById("form-msg");
   if(!date||isNaN(amt)||amt<=0){msg.textContent="請填寫日期同金額";msg.style.color="var(--red)";return;}
-  entries.push({id:nextId++,date,type:currentType,main,sub,amt,note});
+  entries.push({id:nextId++,date,type:currentType,main,sub,amt,note,_createdAt:new Date().toISOString().slice(0,10)});
   save();
   document.getElementById("f-amt").value="";
   document.getElementById("f-note").value="";
@@ -578,7 +582,7 @@ function exportCSV(){
     const sorted=[...entries].sort((a,b)=>a.date.localeCompare(b.date));
     sorted.forEach(e=>{
       const note=(e.note||"").replace(/,/g,"，");
-      rows.push([e.date,e.type,e.main,e.sub,e.amt.toFixed(3),e.date,note]);
+      rows.push([e.date,e.type,e.main,e.sub,e.amt.toFixed(3),e._createdAt||e.date,note]);
     });
     const csv=rows.map(r=>r.join(",")).join("\n");
     const blob=new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"});
@@ -631,7 +635,7 @@ function applyRecurring(){
         const dueDate=new Date(cursorYear,cursorMonth,dueDay);
         if(dueDate<=today){
           const dateStr=ym+"-"+String(dueDay).padStart(2,"0");
-          entries.push({id:nextId++,date:dateStr,type:r.type,main:r.main,sub:r.sub,amt:r.amt,note:r.note||r.sub,_rec:true});
+          entries.push({id:nextId++,date:dateStr,type:r.type,main:r.main,sub:r.sub,amt:r.amt,note:r.note||r.sub,_rec:true,_createdAt:new Date().toISOString().slice(0,10)});
           r.lastApplied=ym;
           added++;
         }
@@ -1134,7 +1138,7 @@ function renderAcct(){
   const allocEl=document.getElementById("acct-alloc-section");
   if(!accounts.length){
     nwEl.innerHTML="";
-    listEl.innerHTML=`<div class="sec"><div style="padding:24px 16px;text-align:center;color:var(--text3);font-size:14px;">尚未有戶口記錄</div></div><button class="acct-add-btn" onclick="openAcctModal()">＋ 新增戶口 / 資產</button>`;
+    listEl.innerHTML=`<div class="sec"><div style="padding:24px 16px;text-align:center;color:var(--text3);font-size:14px;">尚未有戶口記錄</div></div>`;
     allocEl.innerHTML="";
     return;
   }
@@ -1183,7 +1187,7 @@ function renderAcct(){
       </div>`;
     });
   });
-  listEl.innerHTML=html+`<button class="acct-add-btn" onclick="openAcctModal()">＋ 新增戶口 / 資產</button>`;
+  listEl.innerHTML=html;
 
   // Allocation breakdown
   if(totalAssets>0){
@@ -1214,6 +1218,9 @@ function init(){
   loadGoals();
   loadDebts();
   loadAccounts();
+  // Wire static buttons via addEventListener (more reliable on iOS Safari)
+  document.getElementById("acct-static-add-btn").addEventListener("click",()=>openAcctModal());
+  document.getElementById("rec-add-btn").addEventListener("click",()=>openRecModal());
   const added=applyRecurring();
   document.getElementById("f-date").value=new Date().toISOString().slice(0,10);
   document.getElementById("hdr-sub").textContent=entries.length.toLocaleString()+" 筆記錄";
